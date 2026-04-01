@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
+import json
 from unittest.mock import MagicMock
+
+from pathlib import Path
 
 from nemo_gym.openai_utils import (
     NeMoGymEasyInputMessage,
@@ -27,6 +30,11 @@ from resources_servers.bunsen_bench.app import (
     BunsenBenchResourcesServer,
     BunsenBenchResourcesServerConfig,
     BunsenBenchVerifyRequest,
+)
+from resources_servers.bunsen_bench.prepare_data import (
+    DEFAULT_SYSTEM_PROMPT,
+    convert_rows,
+    prepare_data,
 )
 
 
@@ -132,3 +140,52 @@ class TestBunsenBenchResourcesServer:
         assert result.matched is False
         assert result.model_answer == ""
         assert result.normalized_model_answer == ""
+
+
+class TestPrepareData:
+    def test_convert_rows_builds_gym_shape(self) -> None:
+        rows = [
+            {
+                "task_id": "custom-1",
+                "prompt": "Return only the chemical symbol for sodium.",
+                "expected_answer": "Na",
+                "metadata": {"topic": "chemistry"},
+            }
+        ]
+
+        result = convert_rows(rows)
+
+        assert result == [
+            {
+                "task_id": "custom-1",
+                "prompt": "Return only the chemical symbol for sodium.",
+                "expected_answer": "Na",
+                "metadata": {"topic": "chemistry"},
+                "responses_create_params": {
+                    "input": [
+                        {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
+                        {"role": "user", "content": "Return only the chemical symbol for sodium."},
+                    ]
+                },
+            }
+        ]
+
+    def test_convert_rows_generates_missing_task_id(self) -> None:
+        rows = [{"prompt": "Respond with exactly the single word: exothermic", "expected_answer": "exothermic"}]
+
+        result = convert_rows(rows)
+
+        assert result[0]["task_id"] == "bunsen-001"
+        assert result[0]["metadata"] == {}
+
+    def test_prepare_data_default_examples_match_checked_in_example_file(self, tmp_path: Path) -> None:
+        output_path = tmp_path / "example.jsonl"
+
+        prepare_data(output_path=output_path)
+
+        generated = output_path.read_text(encoding="utf-8").strip().splitlines()
+        checked_in = (
+            Path("resources_servers/bunsen_bench/data/example.jsonl").read_text(encoding="utf-8").strip().splitlines()
+        )
+
+        assert [json.loads(line) for line in generated] == [json.loads(line) for line in checked_in]
