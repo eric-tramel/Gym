@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import re
 from typing import Any, Optional
 
 from fastapi import FastAPI
@@ -24,6 +25,23 @@ from nemo_gym.base_resources_server import (
     BaseVerifyResponse,
     SimpleResourcesServer,
 )
+
+
+CHOICE_TAG_PATTERN = re.compile(r"<choice>\s*(.*?)\s*</choice>", re.IGNORECASE | re.DOTALL)
+ANSWER_TAG_PATTERN = re.compile(r"<answer>\s*(.*?)\s*</answer>", re.IGNORECASE | re.DOTALL)
+
+
+def _extract_answer(text: Optional[str]) -> str:
+    if not text:
+        return ""
+
+    stripped_text = text.strip()
+    for pattern in (CHOICE_TAG_PATTERN, ANSWER_TAG_PATTERN):
+        match = pattern.search(stripped_text)
+        if match:
+            return match.group(1).strip()
+
+    return stripped_text
 
 
 def _normalize_answer(text: Optional[str]) -> str:
@@ -66,7 +84,7 @@ class BunsenBenchResourcesServer(SimpleResourcesServer):
         return super().setup_webserver()
 
     async def verify(self, body: BunsenBenchVerifyRequest) -> BunsenBenchVerifyResponse:
-        model_answer = (body.response.output_text or "").strip()
+        model_answer = _extract_answer(body.response.output_text)
         normalized_expected_answer = _normalize_answer(body.expected_answer)
         normalized_model_answer = _normalize_answer(model_answer)
         matched = bool(normalized_expected_answer) and normalized_model_answer == normalized_expected_answer

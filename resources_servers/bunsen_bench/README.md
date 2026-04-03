@@ -1,21 +1,42 @@
 # Description
 
-`bunsen-bench` is a stub single-turn environment for bootstrapping a new NeMo-Gym benchmark. The current verifier uses a normalized exact-match check against the task's `expected_answer`, which makes the scaffold immediately runnable while leaving room for richer grading logic later.
+`bunsen-bench` is a stub single-turn environment for bootstrapping a new NeMo-Gym benchmark. The current verifier uses a normalized exact-match check against the task's `expected_answer`, with support for the tagged `<choice>...</choice>` and `<answer>...</answer>` responses emitted by the internal bunsen-bench preparation flow.
 
 Example inputs live in `resources_servers/bunsen_bench/data/example.jsonl`.
 
 ## Prepare data
 
-To regenerate the built-in example dataset:
+The prep entrypoint now lives under `resources_servers/bunsen_bench/prepare_data/` and mirrors the internal bunsen-bench flow: load a dataset config from HuggingFace, render the canonical chemistry prompt shape, and emit `test.jsonl` plus `metadata.json`.
+
+To regenerate the built-in smoke-test dataset:
 
 ```bash
-python resources_servers/bunsen_bench/prepare_data.py
+python -m resources_servers.bunsen_bench.prepare_data examples
 ```
 
-To convert raw JSONL into Gym-compatible `bunsen-bench` rows:
+To prepare the internal HuggingFace dataset into a Gym-ready handoff artifact:
 
 ```bash
-python resources_servers/bunsen_bench/prepare_data.py \
+python -m resources_servers.bunsen_bench.prepare_data hf \
+    --config mcq \
+    --output-dir resources_servers/bunsen_bench/data/prepare/mcq
+```
+
+This writes:
+
+- `resources_servers/bunsen_bench/data/prepare/mcq/test.jsonl`
+- `resources_servers/bunsen_bench/data/prepare/mcq/metadata.json`
+
+The HuggingFace prep mode defaults to:
+
+- repo: `nvidia/bunsen-bench-internal` or `$BUNSEN_HF_REPO`
+- config: `mcq` or `$BUNSEN_HF_CONFIG`
+- split: `test`
+
+For local ad hoc JSONL conversion, a raw compatibility mode is still available:
+
+```bash
+python -m resources_servers.bunsen_bench.prepare_data raw \
     --input /path/to/raw.jsonl \
     --output resources_servers/bunsen_bench/data/train.jsonl
 ```
