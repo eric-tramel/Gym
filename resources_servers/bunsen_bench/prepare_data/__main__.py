@@ -8,16 +8,15 @@ from pathlib import Path
 
 from .core import (
     BUNSEN_HF_CONFIG_ENV,
-    BUNSEN_HF_REPO_ENV,
+    BUNSEN_OPEN_ENDED_ANNOTATION_PATH_ENV,
     DEFAULT_CHOICE_SHUFFLE_SEED,
     DEFAULT_EXAMPLE_OUTPUT_PATH,
     DEFAULT_HF_CONFIG,
-    DEFAULT_HF_REPO,
-    DEFAULT_HF_SPLIT,
+    DEFAULT_OPEN_ENDED_ANNOTATION_PATH,
     DEFAULT_SYSTEM_PROMPT,
     prepare_data,
-    prepare_huggingface_data,
     prepare_raw_jsonl,
+    prepare_source_data,
 )
 
 
@@ -45,38 +44,40 @@ def main(argv: list[str] | None = None) -> None:
     raw_parser.add_argument("--task-id-field", default="task_id", help="Field name containing the task id.")
     raw_parser.add_argument("--metadata-field", default="metadata", help="Field name containing metadata.")
 
-    hf_parser = subparsers.add_parser(
-        "hf",
-        help="Load bunsen-bench from HuggingFace, format prompts, and write test.jsonl + metadata.json.",
+    source_parser = subparsers.add_parser(
+        "source",
+        help="Source bunsen-bench from the original upstream datasets and write test.jsonl + metadata.json.",
     )
-    hf_parser.add_argument(
-        "--repo-id",
-        default=None,
-        help=(f"HuggingFace dataset repo (default: ${BUNSEN_HF_REPO_ENV} or {DEFAULT_HF_REPO})"),
-    )
-    hf_parser.add_argument(
+    source_parser.add_argument(
         "--config",
         default=None,
         help=f"Dataset config (default: ${BUNSEN_HF_CONFIG_ENV} or {DEFAULT_HF_CONFIG})",
     )
-    hf_parser.add_argument("--split", default=DEFAULT_HF_SPLIT, help=f"Dataset split (default: {DEFAULT_HF_SPLIT})")
-    hf_parser.add_argument(
+    source_parser.add_argument(
         "--output-dir",
         default=None,
         help="Directory for generated test.jsonl and metadata.json (default: data/prepare/<config>).",
     )
-    hf_parser.add_argument(
+    source_parser.add_argument(
+        "--annotation-path",
+        default=None,
+        help=(
+            "Open-ended annotation JSONL path "
+            f"(default: ${BUNSEN_OPEN_ENDED_ANNOTATION_PATH_ENV} or {DEFAULT_OPEN_ENDED_ANNOTATION_PATH})"
+        ),
+    )
+    source_parser.add_argument(
         "--choice-shuffle-seed",
         type=int,
         default=DEFAULT_CHOICE_SHUFFLE_SEED,
         help=f"Deterministic seed for MCQ choice shuffling (default: {DEFAULT_CHOICE_SHUFFLE_SEED})",
     )
-    hf_parser.add_argument(
+    source_parser.add_argument(
         "--no-shuffle-mcq-choices",
         action="store_true",
         help="Disable deterministic shuffling for MCQ choices.",
     )
-    hf_parser.add_argument("--dry-run", action="store_true", help="Load and convert without writing files.")
+    source_parser.add_argument("--dry-run", action="store_true", help="Load and convert without writing files.")
 
     args = parser.parse_args(argv)
 
@@ -98,11 +99,10 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Wrote {count} converted rows to {args.output}")
         return
 
-    output_path, count = prepare_huggingface_data(
+    output_path, count = prepare_source_data(
         output_dir=args.output_dir,
-        repo_id=args.repo_id,
         config_name=args.config,
-        split=args.split,
+        annotation_path=args.annotation_path,
         shuffle_mcq_choices=not args.no_shuffle_mcq_choices,
         choice_shuffle_seed=args.choice_shuffle_seed,
         dry_run=args.dry_run,
