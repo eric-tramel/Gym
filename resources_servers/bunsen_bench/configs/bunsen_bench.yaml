@@ -1,0 +1,22 @@
+bunsen_bench:
+  resources_servers:
+    bunsen_bench:
+      entrypoint: app.py
+      domain: other
+      verified: false
+      description: Stub exact-match environment scaffold for bunsen-bench
+      value: Prototype bunsen-bench tasks, prompts, and verifier logic
+bunsen_bench_simple_agent:
+  responses_api_agents:
+    simple_agent:
+      entrypoint: app.py
+      resources_server:
+        type: resources_servers
+        name: bunsen_bench
+      model_server:
+        type: responses_api_models
+        name: policy_model
+      datasets:
+      - name: example
+        type: example
+        jsonl_fpath: resources_servers/bunsen_bench/data/example.jsonl
